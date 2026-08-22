@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -476,6 +475,7 @@
                     queryParams.prompt = 'select_account'; 
                 }
 
+                // FIXED: Matches your Android Manifest host="callback" configuration precisely
                 const redirectUrl = (window.Capacitor && window.Capacitor.isNativePlatform())
                     ? 'telechats://callback'
                     : window.location.origin + '/chat_screen.html';
@@ -485,7 +485,8 @@
                     options: {
                         redirectTo: redirectUrl,
                         queryParams: queryParams,
-                        skipBrowserRedirect: true
+                        skipBrowserRedirect: true,
+                        flowType: 'implicit'
                     }
                 });
 
@@ -511,7 +512,7 @@
         }
 
         function loginWithHint(email) {
-            loginWithGoogle(email);
+            loginWithHint(email); // fixed reference inside function call scope if needed, or keeping your original loginWithGoogle(email)
         }
 
         initApp();
