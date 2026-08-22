@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/AirMuntLTC/TeleChats#readme",
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.5.0"
   }
 }
