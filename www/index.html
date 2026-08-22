@@ -260,6 +260,32 @@
     </div>
 
     <script>
+        // Listen for incoming deep link callbacks when returning from the browser
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+            window.Capacitor.Plugins.App.addListener('appUrlOpen', async (event) => {
+                const url = event.url;
+                if (url && url.includes('chat_screen.html')) {
+                    const hashIndex = url.indexOf('#');
+                    if (hashIndex !== -1) {
+                        const hash = url.substring(hashIndex + 1);
+                        const params = new URLSearchParams(hash);
+                        const access_token = params.get('access_token');
+                        const refresh_token = params.get('refresh_token');
+
+                        if (access_token && refresh_token) {
+                            const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+                            if (!error) {
+                                window.location.href = 'chat_screen.html';
+                            } else {
+                                document.getElementById('loadingOverlay').style.display = 'none';
+                                alert('Session Error: ' + error.message);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         async function checkSession() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
@@ -313,9 +339,9 @@
                 queryParams.prompt = 'select_account'; 
             }
 
-            // Strictly forces the secure native Capacitor URL route
+            // Uses the custom deep link scheme for native app builds
             const redirectUrl = (window.Capacitor && window.Capacitor.isNativePlatform())
-                ? 'https://localhost/chat_screen.html'
+                ? 'telechats://chat_screen.html'
                 : window.location.origin + '/chat_screen.html';
 
             const { data, error } = await supabase.auth.signInWithOAuth({
