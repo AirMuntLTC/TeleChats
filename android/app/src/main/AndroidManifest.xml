@@ -22,12 +22,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Precise Deep-link intent filter -->
+            <!-- Fixed Deep-link intent filter with clean host -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="telechats" android:host="chat_screen.html" />
+                <data android:scheme="telechats" android:host="callback" />
             </intent-filter>
 
         </activity>
