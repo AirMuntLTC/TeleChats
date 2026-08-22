@@ -166,6 +166,7 @@
             color: #ef4444;
         }
 
+        /* Starts visible to prevent flashing login page on startup */
         .loading-overlay {
             position: fixed;
             top: 0; 
@@ -247,7 +248,8 @@
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <!-- Default loader visible on app open -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: flex;">
         <div class="loading-box">
             <img src="logo.png" alt="Loading Logo" class="loading-logo">
             <div class="dots-loader">
@@ -255,44 +257,101 @@
                 <span></span>
                 <span></span>
             </div>
-            <div class="loading-text">Waiting for account...</div>
+            <div id="loadingText" class="loading-text">Loading TeleChats...</div>
         </div>
     </div>
 
     <script>
-        // Listen for incoming deep link callbacks when returning from the browser
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
-            window.Capacitor.Plugins.App.addListener('appUrlOpen', async (event) => {
-                const url = event.url;
-                if (url && url.includes('chat_screen.html')) {
-                    const hashIndex = url.indexOf('#');
-                    if (hashIndex !== -1) {
-                        const hash = url.substring(hashIndex + 1);
-                        const params = new URLSearchParams(hash);
-                        const access_token = params.get('access_token');
-                        const refresh_token = params.get('refresh_token');
+        // Helper to update loading message dynamically
+        function setLoadingText(text) {
+            const textEl = document.getElementById('loadingText');
+            if (textEl) textEl.textContent = text;
+        }
 
-                        if (access_token && refresh_token) {
-                            const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-                            if (!error) {
-                                window.location.href = 'chat_screen.html';
-                            } else {
-                                document.getElementById('loadingOverlay').style.display = 'none';
-                                alert('Session Error: ' + error.message);
-                            }
+        // Save or update user profile to local recent accounts database
+        function saveUserToDatabase(user) {
+            if (!user) return;
+            const email = user.email;
+            const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0];
+            const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || 'https://via.placeholder.com/150';
+
+            let savedAccounts = JSON.parse(localStorage.getItem('telechats_saved_accounts') || '[]');
+            
+            // Remove existing entry for this email if present
+            savedAccounts = savedAccounts.filter(acc => acc.email !== email);
+            
+            // Add to front of array
+            savedAccounts.unshift({ email, name, avatar });
+            localStorage.setItem('telechats_saved_accounts', JSON.stringify(savedAccounts));
+        }
+
+        // Handle Session & Database data load completely before transitioning
+        async function handleAuthenticatedUser(user) {
+            setLoadingText('Syncing database...');
+            saveUserToDatabase(user);
+            
+            // Simulate/perform final user database preparations if needed here
+            await new Promise(resolve => setTimeout(resolve, 400)); 
+
+            setLoadingText('Entering chat...');
+            window.location.href = 'chat_screen.html';
+        }
+
+        // Process incoming OAuth tokens from deep link URLs
+        async function processAuthUrl(url) {
+            if (url && url.includes('chat_screen.html')) {
+                const hashIndex = url.indexOf('#');
+                if (hashIndex !== -1) {
+                    const hash = url.substring(hashIndex + 1);
+                    const params = new URLSearchParams(hash);
+                    const access_token = params.get('access_token');
+                    const refresh_token = params.get('refresh_token');
+
+                    if (access_token && refresh_token) {
+                        setLoadingText('Setting up session...');
+                        const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+                        if (!error && data?.user) {
+                            await handleAuthenticatedUser(data.user);
+                        } else {
+                            document.getElementById('loadingOverlay').style.display = 'none';
+                            alert('Session Error: ' + (error ? error.message : 'Unknown error'));
                         }
                     }
                 }
-            });
-        }
-
-        async function checkSession() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                window.location.href = 'chat_screen.html';
             }
         }
-        checkSession();
+
+        // App startup check sequence
+        async function initApp() {
+            setLoadingText('Checking session...');
+
+            // 1. Check if launched cold via deep link callback
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+                window.Capacitor.Plugins.App.addListener('appUrlOpen', async (event) => {
+                    await processAuthUrl(event.url);
+                });
+
+                try {
+                    const launchData = await window.Capacitor.Plugins.App.getLaunchUrl();
+                    if (launchData && launchData.url) {
+                        await processAuthUrl(launchData.url);
+                        return;
+                    }
+                } catch (e) {
+                    console.log('Launch URL check skipped:', e);
+                }
+            }
+
+            // 2. Check standard existing active session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session && session.user) {
+                await handleAuthenticatedUser(session.user);
+            } else {
+                // No session found, hide loader and show login screen & saved accounts
+                loadSavedAccounts();
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        }
 
         function loadSavedAccounts() {
             const savedAccounts = JSON.parse(localStorage.getItem('telechats_saved_accounts') || '[]');
@@ -319,7 +378,6 @@
                 section.style.display = 'none';
             }
         }
-        loadSavedAccounts();
 
         function removeAccount(event, index) {
             event.stopPropagation();
@@ -330,7 +388,10 @@
         }
 
         async function loginWithGoogle(emailHint = null) {
-            document.getElementById('loadingOverlay').style.display = 'flex';
+            // Show loading overlay when user triggers Google sign-in
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = 'flex';
+            setLoadingText('Connecting to Google...');
 
             const queryParams = {};
             if (emailHint) {
@@ -339,7 +400,6 @@
                 queryParams.prompt = 'select_account'; 
             }
 
-            // Uses the custom deep link scheme for native app builds
             const redirectUrl = (window.Capacitor && window.Capacitor.isNativePlatform())
                 ? 'telechats://chat_screen.html'
                 : window.location.origin + '/chat_screen.html';
@@ -354,7 +414,7 @@
             });
 
             if (error) {
-                document.getElementById('loadingOverlay').style.display = 'none';
+                overlay.style.display = 'none';
                 alert('Login Error: ' + error.message);
                 return;
             }
@@ -362,7 +422,8 @@
             if (data?.url) {
                 if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
                     await window.Capacitor.Plugins.Browser.open({ url: data.url });
-                    document.getElementById('loadingOverlay').style.display = 'none';
+                    // Keep loader active as browser handles authentication flow
+                    setLoadingText('Waiting for account...');
                 } else {
                     window.location.href = data.url;
                 }
@@ -372,6 +433,9 @@
         function loginWithHint(email) {
             loginWithGoogle(email);
         }
+
+        // Run app initialization on load
+        initApp();
     </script>
 </body>
 </html>
