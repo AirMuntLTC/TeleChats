@@ -324,7 +324,7 @@
         }
 
         async function processAuthUrl(url) {
-            if (url && (url.includes('callback') || url.includes('chat_screen.html') || url.includes('code='))) {
+            if (url && (url.includes('callback') || url.includes('chat_screen.html') || url.includes('code=') || url.includes('access_token='))) {
                 // Close the Capacitor system browser if it's open
                 if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
                     try {
@@ -333,10 +333,10 @@
                 }
 
                 try {
-                    const parsedUrl = new URL(url);
+                    // 1. Handle modern PKCE flow (Auth code in query parameters) safely via regex
+                    const codeMatch = url.match(/[?&]code=([^&]+)/);
+                    const code = codeMatch ? decodeURIComponent(codeMatch[1]) : null;
 
-                    // 1. Handle modern PKCE flow (Auth code in query parameters)
-                    const code = parsedUrl.searchParams.get('code');
                     if (code && typeof supabase !== 'undefined') {
                         setLoadingText('Setting up session...');
                         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
@@ -349,29 +349,27 @@
                         }
                     }
 
-                    // 2. Fallback: Handle implicit flow (Tokens in hash fragment)
-                    const hashIndex = url.indexOf('#');
-                    if (hashIndex !== -1) {
-                        const hash = url.substring(hashIndex + 1);
-                        const params = new URLSearchParams(hash);
-                        const access_token = params.get('access_token');
-                        const refresh_token = params.get('refresh_token');
+                    // 2. Fallback: Handle implicit flow (Tokens in hash fragment or query) safely via regex
+                    const accessTokenMatch = url.match(/[#&]access_token=([^&]+)/);
+                    const refreshTokenMatch = url.match(/[#&]refresh_token=([^&]+)/);
+                    const access_token = accessTokenMatch ? decodeURIComponent(accessTokenMatch[1]) : null;
+                    const refresh_token = refreshTokenMatch ? decodeURIComponent(refreshTokenMatch[1]) : null;
 
-                        if (access_token && refresh_token && typeof supabase !== 'undefined') {
-                            setLoadingText('Setting up session...');
-                            const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
-                            if (!error && data?.user) {
-                                await handleAuthenticatedUser(data.user);
-                                return true;
-                            } else {
-                                hideLoader();
-                                alert('Session Error: ' + (error ? error.message : 'Unknown error'));
-                            }
+                    if (access_token && refresh_token && typeof supabase !== 'undefined') {
+                        setLoadingText('Setting up session...');
+                        const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+                        if (!error && data?.user) {
+                            await handleAuthenticatedUser(data.user);
+                            return true;
+                        } else {
+                            hideLoader();
+                            alert('Session Error: ' + (error ? error.message : 'Unknown error'));
                         }
                     }
                 } catch (err) {
                     hideLoader();
                     console.error('Error processing auth URL:', err);
+                    alert('Auth Processing Exception: ' + err.message);
                 }
             }
             return false;
