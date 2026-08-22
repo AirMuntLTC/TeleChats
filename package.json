@@ -1,0 +1,29 @@
+{
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/push-notifications": "^8.1.2"
+  },
+  "name": "telechats",
+  "version": "1.0.0",
+  "description": "",
+  "main": "supabase.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AirMuntLTC/TeleChats.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AirMuntLTC/TeleChats/issues"
+  },
+  "homepage": "https://github.com/AirMuntLTC/TeleChats#readme",
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0"
+  }
+}
