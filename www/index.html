@@ -324,8 +324,14 @@
         }
 
         async function processAuthUrl(url) {
-            // FIXED: Check for 'callback' or 'chat_screen.html' to properly handle incoming deep links
             if (url && (url.includes('callback') || url.includes('chat_screen.html'))) {
+                // Close the Capacitor system browser if it's open
+                if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+                    try {
+                        await window.Capacitor.Plugins.Browser.close();
+                    } catch (e) {}
+                }
+
                 const hashIndex = url.indexOf('#');
                 if (hashIndex !== -1) {
                     const hash = url.substring(hashIndex + 1);
@@ -357,7 +363,7 @@
                     throw new Error('Supabase SDK failed to load.');
                 }
 
-                // 1. Check deep link launch URL
+                // 1. Check deep link launch URL & listeners
                 if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
                     window.Capacitor.Plugins.App.addListener('appUrlOpen', async (event) => {
                         await processAuthUrl(event.url);
@@ -450,7 +456,6 @@
                     queryParams.prompt = 'select_account'; 
                 }
 
-                // FIXED: Use telechats://callback for native mobile deep linking
                 const redirectUrl = (window.Capacitor && window.Capacitor.isNativePlatform())
                     ? 'telechats://callback'
                     : window.location.origin + '/chat_screen.html';
@@ -472,7 +477,13 @@
 
                 if (data?.url) {
                     setLoadingText('Waiting for account...', true);
-                    window.location.href = data.url;
+                    
+                    // FIXED: Use Capacitor Browser plugin on native platforms to prevent blank WebView views
+                    if (window.Capacitor && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins.Browser) {
+                        await window.Capacitor.Plugins.Browser.open({ url: data.url });
+                    } else {
+                        window.location.href = data.url;
+                    }
                 }
             } catch (err) {
                 hideLoader();
