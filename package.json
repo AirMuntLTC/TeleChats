@@ -10,6 +10,7 @@
   "description": "",
   "main": "supabase.js",
   "scripts": {
+    "build": "npx @capacitor/assets generate --android && npx cap sync android",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

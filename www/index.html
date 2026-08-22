@@ -326,10 +326,15 @@
                 queryParams.prompt = 'select_account'; 
             }
 
+            // Fix localhost:3000 error by forcing the correct native Capacitor origin URL
+            const redirectUrl = (window.Capacitor && window.Capacitor.isNativePlatform())
+                ? 'https://localhost/chat_screen.html'
+                : window.location.origin + '/chat_screen.html';
+
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: window.location.origin + '/chat_screen.html',
+                    redirectTo: redirectUrl,
                     queryParams: queryParams,
                     skipBrowserRedirect: true // Keeps the flow inside the app
                 }
