@@ -313,7 +313,7 @@
             loadSavedAccounts();
         }
 
-        // Trigger Google OAuth Login (with Fullscreen loading for both buttons and hints)
+        // Trigger Google OAuth Login (with Fullscreen loading & In-App Browser popup)
         async function loginWithGoogle(emailHint = null) {
             // Show loading overlay immediately when any sign-in route is triggered
             document.getElementById('loadingOverlay').style.display = 'flex';
@@ -326,11 +326,12 @@
                 queryParams.prompt = 'select_account'; 
             }
 
-            const { error } = await supabase.auth.signInWithOAuth({
+            const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: window.location.origin + '/chat_screen.html',
-                    queryParams: queryParams
+                    queryParams: queryParams,
+                    skipBrowserRedirect: true // Keeps the flow inside the app
                 }
             });
 
@@ -338,6 +339,18 @@
                 // Hide loading overlay if an error occurs so the user isn't stuck
                 document.getElementById('loadingOverlay').style.display = 'none';
                 alert('Login Error: ' + error.message);
+                return;
+            }
+
+            if (data?.url) {
+                // Opens Google sign-in inside a smooth native in-app popup window (Messenger style)
+                if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+                    await window.Capacitor.Plugins.Browser.open({ url: data.url });
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                } else {
+                    // Fallback for standard web browsers
+                    window.location.href = data.url;
+                }
             }
         }
 
