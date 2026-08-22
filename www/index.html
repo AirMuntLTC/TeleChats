@@ -17,7 +17,6 @@
     <script src="supabase.js"></script>
 
     <style>
-        /* Apply unique modern font to everything and remove mobile tap artifacts */
         * {
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
@@ -83,7 +82,6 @@
             outline: none !important;
         }
 
-        /* Messenger-style Saved Accounts Section */
         .saved-accounts {
             margin-top: 30px;
             width: 100%;
@@ -168,7 +166,6 @@
             color: #ef4444;
         }
 
-        /* Solid Fullscreen Loading Overlay Styles */
         .loading-overlay {
             position: fixed;
             top: 0; 
@@ -237,23 +234,19 @@
 <body>
 
     <div class="login-container">
-        <!-- Logo Image -->
         <img src="logo.png" alt="TeleChats Logo" class="app-logo">
         
-        <!-- Google Login Button -->
         <button class="google-btn" onclick="loginWithGoogle()">
             <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.46-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
             Sign in with Google
         </button>
 
-        <!-- Dynamic Saved Accounts List -->
         <div id="savedAccountsSection" class="saved-accounts" style="display: none;">
             <div class="saved-title">Recent Accounts</div>
             <div id="accountsList"></div>
         </div>
     </div>
 
-    <!-- Solid Fullscreen Loading Overlay with Logo & Animation -->
     <div id="loadingOverlay" class="loading-overlay" style="display: none;">
         <div class="loading-box">
             <img src="logo.png" alt="Loading Logo" class="loading-logo">
@@ -267,7 +260,6 @@
     </div>
 
     <script>
-        // Check if user is already logged in, redirect to chat room
         async function checkSession() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
@@ -276,7 +268,6 @@
         }
         checkSession();
 
-        // Load saved accounts on start
         function loadSavedAccounts() {
             const savedAccounts = JSON.parse(localStorage.getItem('telechats_saved_accounts') || '[]');
             const section = document.getElementById('savedAccountsSection');
@@ -304,7 +295,6 @@
         }
         loadSavedAccounts();
 
-        // Remove single saved account
         function removeAccount(event, index) {
             event.stopPropagation();
             let savedAccounts = JSON.parse(localStorage.getItem('telechats_saved_accounts') || '[]');
@@ -313,20 +303,17 @@
             loadSavedAccounts();
         }
 
-        // Trigger Google OAuth Login (with Fullscreen loading & In-App Browser popup)
         async function loginWithGoogle(emailHint = null) {
-            // Show loading overlay immediately when any sign-in route is triggered
             document.getElementById('loadingOverlay').style.display = 'flex';
 
             const queryParams = {};
-
             if (emailHint) {
                 queryParams.login_hint = emailHint; 
             } else {
                 queryParams.prompt = 'select_account'; 
             }
 
-            // Fix localhost:3000 error by forcing the correct native Capacitor origin URL
+            // Strictly forces the secure native Capacitor URL route
             const redirectUrl = (window.Capacitor && window.Capacitor.isNativePlatform())
                 ? 'https://localhost/chat_screen.html'
                 : window.location.origin + '/chat_screen.html';
@@ -336,24 +323,21 @@
                 options: {
                     redirectTo: redirectUrl,
                     queryParams: queryParams,
-                    skipBrowserRedirect: true // Keeps the flow inside the app
+                    skipBrowserRedirect: true
                 }
             });
 
             if (error) {
-                // Hide loading overlay if an error occurs so the user isn't stuck
                 document.getElementById('loadingOverlay').style.display = 'none';
                 alert('Login Error: ' + error.message);
                 return;
             }
 
             if (data?.url) {
-                // Opens Google sign-in inside a smooth native in-app popup window (Messenger style)
                 if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
                     await window.Capacitor.Plugins.Browser.open({ url: data.url });
                     document.getElementById('loadingOverlay').style.display = 'none';
                 } else {
-                    // Fallback for standard web browsers
                     window.location.href = data.url;
                 }
             }
