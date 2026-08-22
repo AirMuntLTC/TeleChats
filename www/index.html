@@ -324,7 +324,7 @@
         }
 
         async function processAuthUrl(url) {
-            if (url && (url.includes('callback') || url.includes('chat_screen.html'))) {
+            if (url && (url.includes('callback') || url.includes('chat_screen.html') || url.includes('code='))) {
                 // Close the Capacitor system browser if it's open
                 if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
                     try {
@@ -332,16 +332,14 @@
                     } catch (e) {}
                 }
 
-                const hashIndex = url.indexOf('#');
-                if (hashIndex !== -1) {
-                    const hash = url.substring(hashIndex + 1);
-                    const params = new URLSearchParams(hash);
-                    const access_token = params.get('access_token');
-                    const refresh_token = params.get('refresh_token');
+                try {
+                    const parsedUrl = new URL(url);
 
-                    if (access_token && refresh_token && typeof supabase !== 'undefined') {
+                    // 1. Handle modern PKCE flow (Auth code in query parameters)
+                    const code = parsedUrl.searchParams.get('code');
+                    if (code && typeof supabase !== 'undefined') {
                         setLoadingText('Setting up session...');
-                        const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+                        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
                         if (!error && data?.user) {
                             await handleAuthenticatedUser(data.user);
                             return true;
@@ -350,6 +348,30 @@
                             alert('Session Error: ' + (error ? error.message : 'Unknown error'));
                         }
                     }
+
+                    // 2. Fallback: Handle implicit flow (Tokens in hash fragment)
+                    const hashIndex = url.indexOf('#');
+                    if (hashIndex !== -1) {
+                        const hash = url.substring(hashIndex + 1);
+                        const params = new URLSearchParams(hash);
+                        const access_token = params.get('access_token');
+                        const refresh_token = params.get('refresh_token');
+
+                        if (access_token && refresh_token && typeof supabase !== 'undefined') {
+                            setLoadingText('Setting up session...');
+                            const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+                            if (!error && data?.user) {
+                                await handleAuthenticatedUser(data.user);
+                                return true;
+                            } else {
+                                hideLoader();
+                                alert('Session Error: ' + (error ? error.message : 'Unknown error'));
+                            }
+                        }
+                    }
+                } catch (err) {
+                    hideLoader();
+                    console.error('Error processing auth URL:', err);
                 }
             }
             return false;
@@ -478,7 +500,6 @@
                 if (data?.url) {
                     setLoadingText('Waiting for account...', true);
                     
-                    // FIXED: Use Capacitor Browser plugin on native platforms to prevent blank WebView views
                     if (window.Capacitor && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins.Browser) {
                         await window.Capacitor.Plugins.Browser.open({ url: data.url });
                     } else {

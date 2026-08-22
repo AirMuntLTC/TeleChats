@@ -711,7 +711,7 @@
 
         <!-- Global Error Handler Setup -->
     <script>
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
             const banner = document.getElementById('onscreen-error-banner');
             if (banner) {
                 banner.innerText = `UI Error: ${msg} (Line: ${lineNo})`;
@@ -727,10 +727,6 @@
             }
         });
 
-        function logToScreen(title, data) {
-            console.log(`[${title}]`, data);
-        }
-
         function showAlert(message, title = "Notice") {
             document.getElementById('customAlertTitle').innerText = title;
             document.getElementById('customAlertMessage').innerText = message;
@@ -740,17 +736,13 @@
         function closeCustomAlert() {
             document.getElementById('customAlertModal').style.display = 'none';
         }
-    </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
-    <script>
         let currentUser = null;
         let activeRecipient = null; 
         let activeChatType = 'private'; 
         let allProfilesCache = [];
         let allUserGroupsCache = [];
-        let conversationCache = new Map(); // Safe cache for rendering chats
+        let conversationCache = new Map();
         let renderedMessageIds = new Set();
         
         let pendingMediaFiles = [];
@@ -764,11 +756,10 @@
         let isUserScrolledUp = false;
         let currentActiveFullscreenUrl = "";
 
-        // All Chats & Archive State Management
-        let currentActiveTabFilter = 'all'; // 'all' or 'archive'
+        let currentActiveTabFilter = 'all';
         let archivedChatIds = JSON.parse(localStorage.getItem('tele_archived_chats') || '[]');
         let longPressTimer = null;
-        let selectedLongPressItem = null; // { recipient, type }
+        let selectedLongPressItem = null;
 
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.getElementById('messages').addEventListener('scroll', function() {
@@ -806,7 +797,6 @@
             loadConversations();
         }
 
-        // Safe ID-based Long-Press Handlers (500ms trigger)
         function handleItemTouchStart(e, id, type) {
             if (longPressTimer) clearTimeout(longPressTimer);
             const item = conversationCache.get(id);
@@ -830,7 +820,6 @@
             const isGroup = type === 'group';
             const isProd = isGroup && recipient.name && recipient.name.startsWith('[PROD]');
             const title = isGroup ? (isProd ? recipient.name.replace('[PROD] ', '') : recipient.name) : (recipient.full_name || recipient.email);
-            
             document.getElementById('lp-chat-title').innerText = title;
             
             const isArchived = archivedChatIds.includes(recipient.id);
@@ -891,7 +880,7 @@
         
         async function initApp() {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) { window.location.href = 'auth_screen.html'; return; }
+            if (!session) { window.location.href = 'index.html'; return; }
             currentUser = session.user;
 
             const email = currentUser.email || '';
@@ -914,7 +903,7 @@
                 showAlert("Error logging out: " + error.message, "Error");
                 return;
             }
-            window.location.href = 'auth_screen.html';
+            window.location.href = 'index.html';
         }
 
         async function loadContacts() {
@@ -997,13 +986,12 @@
                     if (isSelectable) {
                         const isSelected = selectedMemberIds.has(profile.id);
                         html += `
-                            <div class="select-contact-item ${isSelected ? 'selected' : ''}" onclick="toggleGroupMember('${profile.id}', this)">
+                            <div class="conversation-item ${isSelected ? 'selected' : ''}" onclick="toggleGroupMember('${profile.id}', this)">
                                 ${avatarContent}
                                 <div class="conversation-info">
                                     <div class="conversation-name">${name}</div>
                                     <div class="conversation-preview">${usernameOnly}</div>
                                 </div>
-                                <div class="checkbox-circle"></div>
                             </div>
                         `;
                     } else {
@@ -1106,7 +1094,7 @@
             }
 
             if (allMsgs.length === 0 && groups.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#6b7280;">No chats yet. Click + Group or search to start.</div>';
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#6b7280;">No chats yet. Click + to start.</div>';
                 const totalBadge = document.getElementById('chats-total-badge');
                 if (totalBadge) totalBadge.style.display = 'none';
                 if (titleElem) titleElem.innerText = "TeleChats";
@@ -1116,7 +1104,6 @@
             let html = '';
             let displayedItemsCount = 0;
 
-            // Render Groups
             groups.forEach(group => {
                 const isArchived = archivedChatIds.includes(group.id);
                 if (currentActiveTabFilter === 'archive' && !isArchived) return;
@@ -1151,7 +1138,6 @@
                 `;
             });
 
-            // Render Direct Messages Partners
             profiles.forEach(profile => {
                 const partnerId = profile.id;
                 const preview = partnerMap.get(partnerId);
@@ -1166,7 +1152,7 @@
 
                 const unread = localUnreadMap.get(partnerId) || 0;
 
-                let avatarHtml = `<div class="user-avatar" style="background:#3b82f6;">${profile.username ? profile.username.charAt(0).toUpperCase() : (profile.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U')}</div>`;
+                let avatarHtml = `<div class="user-avatar" style="background:#3b82f6;">${profile.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U'}</div>`;
                 if (profile.avatar_url) {
                     avatarHtml = `<div class="user-avatar"><img src="${profile.avatar_url}" loading="lazy"></div>`;
                 }
@@ -1179,7 +1165,7 @@
                          onpointerleave='handleItemTouchEnd()'>
                         ${avatarHtml}
                         <div class="conversation-info">
-                            <div class="conversation-name">${profile.username || profile.full_name || 'User'}</div>
+                            <div class="conversation-name">${profile.full_name || profile.email.split('@')[0]}</div>
                             <div class="conversation-preview">${preview}</div>
                         </div>
                         ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
@@ -1211,16 +1197,10 @@
         function extractPreview(msg) {
             if (!msg) return '';
             if (msg.media_url) {
-                return `
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; display: inline-block; flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                    <span>Photo</span>
-                `;
+                return '<span>Photo</span>';
             }
             if (msg.content && msg.content.includes('"type":"product_profile"')) {
-                return `
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; display: inline-block; flex-shrink:0;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                    <span>Product Profile</span>
-                `;
+                return '<span>Product Profile</span>';
             }
             return msg.content || '';
         }
@@ -1291,13 +1271,11 @@
                 document.getElementById('prod-name').value = '';
                 document.getElementById('prod-desc').value = '';
                 document.getElementById('prod-image-preview').style.display = 'none';
-                document.getElementById('prod-image-preview').src = '';
                 prodImageFile = null;
                 document.getElementById('production-details-view').style.display = 'flex';
             } else {
                 document.getElementById('regular-group-name').value = '';
                 document.getElementById('regular-group-image-preview').style.display = 'none';
-                document.getElementById('regular-group-image-preview').src = '';
                 regularGroupImageFile = null;
                 document.getElementById('groupNameModal').style.display = 'flex';
             }
@@ -1320,12 +1298,6 @@
             }
             document.getElementById('groupNameModal').style.display = 'none';
             closeGroupCreator();
-
-            const chatListContainer = document.getElementById('chat-list-container');
-            if (chatListContainer) {
-                chatListContainer.innerHTML = '<div class="loading-spinner"></div>';
-            }
-            switchTab('chats', document.querySelector('.bottom-nav .nav-item'));
 
             let avatarUrl = null;
             if (regularGroupImageFile) {
@@ -1356,13 +1328,6 @@
                 return;
             }
             document.getElementById('production-details-view').style.display = 'none';
-            
-            const chatListContainer = document.getElementById('chat-list-container');
-            if (chatListContainer) {
-                chatListContainer.innerHTML = '<div class="loading-spinner"></div>';
-            }
-
-            switchTab('chats', document.querySelector('.bottom-nav .nav-item'));
 
             const filePath = `${currentUser.id}/prod_${Date.now()}_${prodImageFile.name}`;
             await supabase.storage.from('chat-media').upload(filePath, prodImageFile);
@@ -1405,7 +1370,6 @@
             renderedMessageIds.clear();
             activeChatUnreadCount = 0;
             isUserScrolledUp = false;
-            updateScrollFabBadge();
             
             localUnreadMap.set(recipient.id, 0);
             updateNavBadgeOptimistically();
@@ -1492,40 +1456,32 @@
                 else if (msg.media_url) {
                     bubbleClass += ' media-bubble';
                     let urls = [];
-                    try { 
-                        urls = JSON.parse(msg.media_url); 
-                    } catch(e) { 
-                        urls = [msg.media_url]; 
-                    }
-                    
+                    try { urls = JSON.parse(msg.media_url); } catch(e) { urls = [msg.media_url]; }
                     let gridClass = 'grid-1';
                     if (urls.length === 2) gridClass = 'grid-2';
                     else if (urls.length === 3) gridClass = 'grid-3';
                     else if (urls.length === 4) gridClass = 'grid-4';
-                    else if (urls.length > 4) gridClass = 'grid-more';
 
                     const primaryUrl = urls[0];
-                    const ownerName = isMe ? 'You' : (activeChatType === 'group' ? 'Group Member' : (activeRecipient.full_name || activeRecipient.email.split('@')[0]));
+                    const ownerName = isMe ? 'You' : 'Member';
                     const timestampStr = formatMessageTimestamp(msg.created_at);
 
                     contentHtml += `<div class="media-album-grid ${gridClass}" onclick='openFullscreenMedia("${primaryUrl}", "${ownerName}", "${timestampStr}")'>`;
                     urls.forEach(url => {
-                        const safeFallbackSvg = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzljYTNhZiIgc3Ryb2tlLXdpZHRoPSIyIj48cmVjdCB4PSIzIiB5PSIzIiB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHJ4PSIyIi8+PGNpcmNsZSBjeD0iOC41IiBjeT0iOC41IiByPSIxLjUiLz48cGF0aCBkPSJNMjEgMTVsLTnewLTVsIDIxIi8+PC9zdmc+';
-                        contentHtml += `<img src="${url.trim()}" loading="lazy" onerror="this.src='${safeFallbackSvg}';">`;
+                        contentHtml += `<img src="${url.trim()}" loading="lazy">`;
                     });
                     contentHtml += `</div>`;
 
                     if(msg.content) {
-                        contentHtml += `<div style="padding: 6px 8px 4px 8px; font-size:15px;" onclick='openFullscreenMedia("${primaryUrl}", "${ownerName}", "${timestampStr}")'>${msg.content}</div>`;
+                        contentHtml += `<div style="padding: 6px 8px 4px 8px; font-size:15px;">${msg.content}</div>`;
                     }
                 } 
                 else {
-                    contentHtml = `<span>${msg.content}</span>`;
+                  contentHtml = `<span>${msg.content}</span>`;
                 }
 
                 html += `
                     <div class="message-bubble ${isNew ? 'new-message-anim' : ''} ${bubbleClass}">
-                        ${activeChatType === 'group' && !isMe ? `<div style="font-size:12px;color:#3b82f6;font-weight:700;margin-bottom:2px;">Member</div>` : ''}
                         ${contentHtml}
                     </div>
                 `;
@@ -1538,42 +1494,21 @@
         }
 
         function formatMessageTimestamp(isoString) {
-            if (!isoString) return "today at 6:28 PM";
+            if (!isoString) return "today";
             const date = new Date(isoString);
-            const now = new Date();
-            const isToday = date.toDateString() === now.toDateString();
-            
-            let timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            if (isToday) {
-                return `today at ${timeStr}`;
-            } else {
-                let monthStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-                return `${monthStr} at ${timeStr}`;
-            }
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
         function openFullscreenMedia(url, ownerName, timestamp) {
             currentActiveFullscreenUrl = url;
             document.getElementById('fs-owner-name').innerText = ownerName;
             document.getElementById('fs-timestamp').innerText = timestamp;
-            
-            const container = document.getElementById('fs-media-container');
-            const isVideo = url.endsWith('.mp4') || url.includes('video');
-            
-            if (isVideo) {
-                container.innerHTML = `<video src="${url}" controls autoplay style="max-width:100%; max-height:100%;"></video>`;
-            } else {
-                container.innerHTML = `<img src="${url}" loading="lazy" style="max-width:100%; max-height:100%; object-fit:contain;">`;
-            }
-
-            document.getElementById('fs-menu-popup').style.display = 'none';
+            document.getElementById('fs-media-container').innerHTML = `<img src="${url}" loading="lazy" style="max-width:100%; max-height:100%; object-fit:contain;">`;
             document.getElementById('media-fullscreen-viewer').style.display = 'flex';
         }
 
         function closeFullscreenViewer() {
             document.getElementById('media-fullscreen-viewer').style.display = 'none';
-            document.getElementById('fs-menu-popup').style.display = 'none';
-            currentActiveFullscreenUrl = "";
         }
 
         function toggleFsMenu(e) {
@@ -1582,12 +1517,7 @@
             popup.style.display = popup.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        function closeFsMenu() {
-            document.getElementById('fs-menu-popup').style.display = 'none';
-        }
-
         function downloadCurrentMedia() {
-            closeFsMenu();
             if (!currentActiveFullscreenUrl) return;
             const a = document.createElement('a');
             a.href = currentActiveFullscreenUrl;
@@ -1599,64 +1529,29 @@
         }
 
         function forwardCurrentMedia() {
-            closeFsMenu();
             showAlert("Select a chat to forward this media.", "Forward");
         }
 
         function scrollToBottom(smooth = true) {
             const container = document.getElementById('messages');
-            container.scrollTo({
-                top: container.scrollHeight,
-                behavior: smooth ? 'smooth' : 'auto'
-            });
+            container.scrollTo({ top: container.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
             isUserScrolledUp = false;
-            activeChatUnreadCount = 0;
-            updateScrollFabBadge();
-        }
-
-        function updateScrollFabBadge() {
-            const fab = document.getElementById('scroll-down-fab');
-            const badge = document.getElementById('scroll-down-badge');
-            if (isUserScrolledUp && activeChatUnreadCount > 0) {
-                fab.style.display = 'flex';
-                badge.innerText = activeChatUnreadCount;
-                badge.style.display = 'block';
-            } else if (isUserScrolledUp) {
-                fab.style.display = 'flex';
-                badge.style.display = 'none';
-            } else {
-                fab.style.display = 'none';
-                badge.style.display = 'none';
-            }
         }
 
         function handleMediaFilesSelected(e) {
             let files = Array.from(e.target.files);
             if(files.length === 0) return;
-            
-            if (files.length > 10) {
-                showAlert("You can only select up to 10 media items at a time.", "Limit Exceeded");
-                files = files.slice(0, 10);
-            }
-
             pendingMediaFiles = files;
-            document.getElementById('media-count-title').innerText = `${files.length} item${files.length > 1 ? 's' : ''} selected`;
+            document.getElementById('media-count-title').innerText = `${files.length} item(s) selected`;
             document.getElementById('media-caption-input').value = '';
             
             const grid = document.getElementById('media-thumbs-grid');
             let gridHtml = '';
             files.forEach((file, index) => {
-                const objectUrl = URL.createObjectURL(file);
-                gridHtml += `
-                    <div class="media-thumb-container">
-                        <img src="${objectUrl}" loading="lazy">
-                        <div class="media-thumb-badge">${index + 1}</div>
-                    </div>
-                `;
+                gridHtml += `<img src="${URL.createObjectURL(file)}" style="width:60px; height:60px; object-fit:cover; border-radius:8px;">`;
             });
             grid.innerHTML = gridHtml;
             document.getElementById('media-preview-modal').style.display = 'flex';
-            document.getElementById('media-input').value = '';
         }
 
         function closeMediaPreview() {
@@ -1669,21 +1564,14 @@
             const caption = document.getElementById('media-caption-input').value.trim();
             document.getElementById('media-preview-modal').style.display = 'none';
 
-            const filesToUpload = [...pendingMediaFiles];
-            pendingMediaFiles = [];
-
             let publicUrls = [];
-            for(const file of filesToUpload) {
+            for(const file of pendingMediaFiles) {
                 const filePath = `${currentUser.id}/${Date.now()}_${file.name}`;
                 const { error: uploadError } = await supabase.storage.from('chat-media').upload(filePath, file);
                 if (!uploadError) {
                     const { data: pub } = supabase.storage.from('chat-media').getPublicUrl(filePath);
                     if(pub && pub.publicUrl) publicUrls.push(pub.publicUrl);
                 }
-            }
-            if (publicUrls.length === 0) {
-                showAlert("Failed to upload media files.", "Upload Error");
-                return;
             }
 
             const msgData = { content: caption, media_url: JSON.stringify(publicUrls), sender_id: currentUser.id, is_read: false };
@@ -1716,10 +1604,6 @@
                 const msg = payload.new;
                 if (msg.recipient_id === currentUser.id || msg.group_id) {
                     if (activeRecipient && ((activeChatType === 'private' && msg.sender_id === activeRecipient.id) || (activeChatType === 'group' && msg.group_id === activeRecipient.id))) {
-                        if (msg.sender_id !== currentUser.id && isUserScrolledUp) {
-                            activeChatUnreadCount++;
-                            updateScrollFabBadge();
-                        }
                         loadMessages();
                         supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then();
                     } else {
